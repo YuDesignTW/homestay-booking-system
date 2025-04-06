@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>尞 Laio - 體驗寧靜鄉村生活的完美去處</title>
+    <link rel="stylesheet" href="./public/css/style.css">
+    <link rel="stylesheet" href="./public/css/loading.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .hero {
+            position: relative;
+            height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .hero video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -2;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: -1;
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading页面 -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="parallax-container">
+                <div class="image-layer" id="layer-01">
+                    <img src="./assets/Hero/01.png" alt="上层图片">
+                </div>
+                <div class="image-layer" id="layer-02">
+                    <img src="./assets/Hero/02.png" alt="中间层图片">
+                </div>
+                <div class="image-layer" id="layer-03">
+                    <img src="./assets/Hero/03.png" alt="底层图片">
+                </div>
+            </div>
+            <div class="button-container">
+                <button id="enter-button" class="enter-button">到有風的地方</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <h1>尞 Laio</h1>
+            </div>
+            <nav class="nav">
+                <ul>
+                    <li><a href="#home">首頁</a></li>
+                    <li><a href="#rooms">房型介紹</a></li>
+                    <li><a href="public/booking.html">立即預定</a></li>
+                    <li><a href="#contact">聯絡我們</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <section id="home" class="hero">
+        <video autoplay muted loop playsinline>
+            <source src="./assets/img/hero-bg.MP4" type="video/mp4">
+        </video>
+        <div class="hero-content">
+            <h2>歡迎來到尞 LIAU</h2>
+            <p>體驗寧靜鄉村生活的完美去處</p>
+            <a href="public/booking.html" class="btn-primary">立即預訂</a>
+        </div>
+    </section>
+
+    <section id="about" class="about-section">
+        <div class="container">
+            <h2 class="section-title">關於我們</h2>
+            <div class="about-content">
+                <div class="about-image">
+                    <img src="./assets/img/homestay-exterior.jpg" alt="尞 Laio外觀">
+                </div>
+                <div class="about-text">
+                    <p>尞 Laio位於美麗的自然環境中，遠離城市喧囂，是您放鬆身心的理想場所。我們的民宿融合了傳統與現代元素，為您提供舒適而獨特的住宿體驗。</p>
+                    <p>每一間房都經過精心設計，確保您在此度過愉快的時光。我們注重細節，提供溫馨的服務，讓每位客人感受賓至如歸的溫暖。</p>
+                    <p>無論您是來度假、探親還是商務旅行，尞 Laio都將為您帶來難忘的住宿體驗。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="rooms" class="rooms-section">
+        <div class="container">
+            <h2 class="section-title">房型介紹</h2>
+            <div class="rooms-grid">
+                <div class="room-card">
+                    <div class="room-image">
+                        <img src="./assets/img/standard-room.jpg" alt="標準雙人房">
+                    </div>
+                    <div class="room-details">
+                        <h3>標準雙人房</h3>
+                        <p>舒適溫馨的雙人房，配備一張大床和現代化設施，適合情侶或單人入住。</p>
+                        <ul class="room-features">
+                            <li><i class="fas fa-user"></i> 2人</li>
+                            <li><i class="fas fa-bed"></i> 1張大床</li>
+                            <li><i class="fas fa-bath"></i> 獨立衛浴</li>
+                            <li><i class="fas fa-wifi"></i> 免費Wi-Fi</li>
+                        </ul>
+                        <p class="room-price">NT$ 2,800 /晚</p>
+                        <a href="room-detail.html?id=standard" class="btn-secondary">詳細資訊</a>
+                    </div>
+                </div>
+                
+                <div class="room-card">
+                    <div class="room-image">
+                        <img src="./assets/img/deluxe-room.jpg" alt="豪華家庭房">
+                    </div>
+                    <div class="room-details">
+                        <h3>豪華家庭房</h3>
+                        <p>寬敞明亮的家庭房，配備一張大床和兩張單人床，適合家庭或朋友組合入住。</p>
+                        <ul class="room-features">
+                            <li><i class="fas fa-users"></i> 4人</li>
+                            <li><i class="fas fa-bed"></i> 1張大床 + 2張單人床</li>
+                            <li><i class="fas fa-bath"></i> 獨立衛浴</li>
+                            <li><i class="fas fa-wifi"></i> 免費Wi-Fi</li>
+                            <li><i class="fas fa-tv"></i> 50吋液晶電視</li>
+                        </ul>
+                        <p class="room-price">NT$ 4,200 /晚</p>
+                        <a href="room-detail.html?id=deluxe" class="btn-secondary">詳細資訊</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="booking" class="booking-section">
+        <div class="container">
+            <h2 class="section-title">線上預訂</h2>
+            <div class="booking-call-to-action">
+                <p>享受舒適寧靜的住宿體驗，立即預訂您的完美假期。</p>
+                <a href="public/booking.html" class="btn-primary">立即預訂</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="facilities" class="facilities-section">
+        <div class="container">
+            <h2 class="section-title">設施服務</h2>
+            <div class="facilities-grid">
+                <div class="facility-item">
+                    <i class="fas fa-wifi"></i>
+                    <h3>免費Wi-Fi</h3>
+                    <p>全區域高速無線網路覆蓋</p>
+                </div>
+                <div class="facility-item">
+                    <i class="fas fa-parking"></i>
+                    <h3>免費停車場</h3>
+                    <p>提供寬敞的室外停車空間</p>
+                </div>
+                <div class="facility-item">
+                    <i class="fas fa-utensils"></i>
+                    <h3>農家早餐</h3>
+                    <p>使用當地新鮮食材製作的可口早餐</p>
+                </div>
+                <div class="facility-item">
+                    <i class="fas fa-spa"></i>
+                    <h3>花園休息區</h3>
+                    <p>享受自然風光的戶外休閒空間</p>
+                </div>
+                <div class="facility-item">
+                    <i class="fas fa-bicycle"></i>
+                    <h3>自行車租借</h3>
+                    <p>免費提供自行車探索周邊風景</p>
+                </div>
+                <div class="facility-item">
+                    <i class="fas fa-concierge-bell"></i>
+                    <h3>旅遊諮詢</h3>
+                    <p>提供當地旅遊路線和預訂服務</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="attractions" class="attractions-section">
+        <div class="container">
+            <h2 class="section-title">周邊景點</h2>
+            <div class="attractions-grid">
+                <div class="attraction-card">
+                    <img src="./assets/img/attraction1.jpg" alt="自然風景區">
+                    <div class="attraction-details">
+                        <h3>自然風景區</h3>
+                        <p>距離民宿僅5分鐘車程，提供壯觀的自然景觀和徒步路線。</p>
+                    </div>
+                </div>
+                <div class="attraction-card">
+                    <img src="./assets/img/attraction2.jpg" alt="傳統夜市">
+                    <div class="attraction-details">
+                        <h3>傳統夜市</h3>
+                        <p>距離民宿15分鐘車程，可品嚐當地美食和體驗民俗文化。</p>
+                    </div>
+                </div>
+                <div class="attraction-card">
+                    <img src="./assets/img/attraction3.jpg" alt="歷史古蹟">
+                    <div class="attraction-details">
+                        <h3>歷史古蹟</h3>
+                        <p>距離民宿20分鐘車程，了解當地豐富的歷史文化遺產。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="contact-section">
+        <div class="container">
+            <h2 class="section-title">聯絡我們</h2>
+            <div class="contact-content">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <p>台灣省某某縣某某鄉某某路123號</p>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <p>+886 12345678</p>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <p>info@laio.tw</p>
+                    </div>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-line"></i></a>
+                    </div>
+                </div>
+                <div class="map-container">
+                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3640.7768365069203!2d120.58272491542735!3d24.179587179612203!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjTCsDEwJzQ2LjUiTiAxMjDCsDM1JzAzLjAiRQ!5e0!3m2!1sen!2stw!4v1617345890000!5m2!1sen!2stw" width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <h2>尞 Laio</h2>
+                    <p>體驗寧靜鄉村生活的完美去處</p>
+                </div>
+                <div class="footer-links">
+                    <h3>快速連結</h3>
+                    <ul>
+                        <li><a href="#home">首頁</a></li>
+                        <li><a href="#about">關於我們</a></li>
+                        <li><a href="#rooms">房型介紹</a></li>
+                        <li><a href="public/booking.html">線上預訂</a></li>
+                        <li><a href="#facilities">設施服務</a></li>
+                    </ul>
+                </div>
+                <div class="footer-policy">
+                    <h3>客戶政策</h3>
+                    <ul>
+                        <li><a href="#" id="cancellation-policy">取消政策</a></li>
+                        <li><a href="#">隱私政策</a></li>
+                        <li><a href="#">常見問題</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 尞 Laio. 保留所有權利.</p>
+            </div>
+        </div>
+    </footer>
+
+    <div id="policy-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>取消政策</h2>
+            <div class="policy-details">
+                <p><strong>入住前7天取消：</strong> 全額退款</p>
+                <p><strong>入住前3-6天取消：</strong> 退款50%</p>
+                <p><strong>入住前2天內取消：</strong> 不予退款</p>
+                <p>特殊情況可聯絡我們協商處理。</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="./public/js/main.js"></script>
+    <script src="./public/js/loading.js"></script>
+</body>
+</html> 

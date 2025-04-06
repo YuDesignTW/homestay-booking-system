@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>悠然民宿 - 在线预订</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/booking.css">
+</head>
+<body>
+    <div class="booking-container">
+        <h1 class="booking-title">線上預訂</h1>
+        
+        <div class="booking-process">
+            <div class="progress-step active" id="step1">
+                <div class="step-number">1</div>
+                <div class="step-text">選擇日期</div>
+            </div>
+            <div class="process-line"></div>
+            <div class="progress-step" id="step2">
+                <div class="step-number">2</div>
+                <div class="step-text">選擇房型</div>
+            </div>
+            <div class="process-line"></div>
+            <div class="progress-step" id="step3">
+                <div class="step-number">3</div>
+                <div class="step-text">填寫資訊</div>
+            </div>
+            <div class="process-line"></div>
+            <div class="progress-step" id="step4">
+                <div class="step-number">4</div>
+                <div class="step-text">完成預訂</div>
+            </div>
+        </div>
+        
+        <div class="booking-steps">
+            <!-- 第一步：选择日期 -->
+            <div class="booking-step step-1" style="display: block;">
+                <h2>選擇入住和退房日期</h2>
+                
+                <!-- 加載指示器 -->
+                <div class="loading-container" id="loading-room-data">
+                    <div class="loading-spinner"></div>
+                    <p>正在加載房間資訊中...</p>
+                </div>
+                
+                <!-- 日期選擇器，初始隱藏 -->
+                <div class="date-selection-container" id="date-selection-container" style="display: none;">
+                    <div class="date-picker-container">
+                        <div class="date-field">
+                            <label for="date-range">選擇日期範圍</label>
+                            <div class="input-with-clear">
+                                <input type="text" id="date-range" placeholder="入住日期 - 退房日期" readonly>
+                                <button type="button" id="date-range-clear" class="date-clear" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="calendar-legend">
+                        <div class="legend-item">
+                            <div class="legend-color std"></div>
+                            <span>標準雙人房</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color lux"></div>
+                            <span>豪華家庭房</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color no-rooms"></div>
+                            <span>無可用房間</span>
+                        </div>
+                    </div>
+                    <div class="calendar-info">
+                        <p>色塊代表該日房型可供預訂狀態，預訂至少1晚</p>
+                    </div>
+                    
+                    <div class="guests-container">
+                        <label for="guests-count">入住人數</label>
+                        <div class="guests-counter">
+                            <button type="button" id="decrease-guests" class="counter-btn"><i class="fas fa-minus"></i></button>
+                            <input type="number" id="guests-count" value="2" min="1" max="10" readonly>
+                            <button type="button" id="increase-guests" class="counter-btn"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="nights-summary" id="nights-summary">
+                        <p>請選擇入住和退房日期</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 第二步：选择房型 -->
+            <div class="booking-step step-2" style="display: none;">
+                <h2>選擇房型</h2>
+                <div class="loading-container" id="loading-rooms">
+                    <div class="loading-spinner"></div>
+                    <p>正在查詢可用房型...</p>
+                </div>
+                <div class="available-rooms" id="available-rooms">
+                    <!-- 房间信息会通过JavaScript动态加载 -->
+                </div>
+                <div class="room-selection-error" id="room-selection-error">
+                    <p>請選擇一個房型以繼續</p>
+                </div>
+            </div>
+            
+            <!-- 第三步：填写个人信息 -->
+            <div class="booking-step step-3" style="display: none;">
+                <h2>客人資訊</h2>
+                <div class="booking-summary" id="booking-summary">
+                    <!-- 预订摘要会通过JavaScript动态加载 -->
+                </div>
+                <form id="guest-info-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="guest-name">姓名 <span class="required">*</span></label>
+                            <input type="text" id="guest-name" name="guest-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="guest-phone">聯絡電話 <span class="required">*</span></label>
+                            <input type="tel" id="guest-phone" name="guest-phone" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="guest-email">電子郵箱 <span class="required">*</span></label>
+                        <input type="email" id="guest-email" name="guest-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="arrival-time">預計抵達時間</label>
+                        <select id="arrival-time" name="arrival-time">
+                            <option value="">請選擇抵達時間</option>
+                            <option value="12:00-14:00">12:00 - 14:00</option>
+                            <option value="14:00-16:00">14:00 - 16:00</option>
+                            <option value="16:00-18:00">16:00 - 18:00</option>
+                            <option value="18:00-20:00">18:00 - 20:00</option>
+                            <option value="20:00-22:00">20:00 - 22:00</option>
+                            <option value="其他時間">其他時間 (請在備註中說明)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="special-requests">特殊要求或備註</label>
+                        <textarea id="special-requests" name="special-requests" rows="4" placeholder="如有特殊飲食需求、過敏情況或其他要求，請在此說明"></textarea>
+                    </div>
+                    <div class="cancellation-policy">
+                        <h3>取消政策</h3>
+                        <p><strong>入住前7天取消：</strong> 全額退款</p>
+                        <p><strong>入住前3-6天取消：</strong> 退款50%</p>
+                        <p><strong>入住前2天內取消：</strong> 不予退款</p>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="accept-policy" name="accept-policy" required>
+                        <label for="accept-policy">我已閱讀並接受<a href="#" id="policy-link">取消政策</a> <span class="required">*</span></label>
+                    </div>
+                </form>
+                <div class="form-error" id="form-error">
+                    <p>請填寫所有必填欄位</p>
+                </div>
+            </div>
+            
+            <!-- 第四步：完成预订 -->
+            <div class="booking-step step-4" style="display: none;">
+                <div class="booking-result" id="booking-success">
+                    <div class="success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h2>預訂成功！</h2>
+                    <p>您的預訂請求已提交，我們將盡快通過電子郵件確認您的預訂。</p>
+                    <div class="booking-details" id="final-booking-details">
+                        <!-- 预订详情会通过JavaScript动态加载 -->
+                    </div>
+                    <p>若有任何疑問，請聯絡我們：</p>
+                    <p class="contact-details"><i class="fas fa-phone"></i> +886 12345678</p>
+                    <p class="contact-details"><i class="fas fa-envelope"></i> info@youranHomestay.com</p>
+                </div>
+                <div class="booking-result" id="booking-error" style="display: none;">
+                    <div class="error-icon">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <h2>預訂提交失敗</h2>
+                    <p>很抱歉，提交預訂時出現問題。</p>
+                    <p>請稍後重試或直接聯絡我們：</p>
+                    <p class="contact-details"><i class="fas fa-phone"></i> +886 12345678</p>
+                    <p class="contact-details"><i class="fas fa-envelope"></i> info@youranHomestay.com</p>
+                    <button type="button" id="retry-booking" class="retry-btn">重試</button>
+                </div>
+                <div class="loading-container" id="submit-loading" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>正在提交預訂...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 導航按鈕容器 -->
+        <div class="navigation-buttons" id="navigation-buttons">
+            <div class="step-buttons">
+                <button type="button" id="back-to-step1" class="back-btn">返回</button>
+                <button type="button" id="to-step2" class="next-btn" disabled>查看可用房型</button>
+                <button type="button" id="back-to-step2" class="back-btn" style="display: none;">返回</button>
+                <button type="button" id="to-step3" class="next-btn" disabled style="display: none;">填寫資訊</button>
+                <button type="button" id="to-step4" class="next-btn" style="display: none;">確認預訂</button>
+            </div>
+        </div>
+
+        <!-- 提交訂單按鈕 -->
+        <div id="book-now-button" style="display: none;">
+            <button type="button" class="book-now-btn">返回首頁</button>
+        </div>
+    </div>
+
+    <!-- 隱藏的iframe表單目標 -->
+    <iframe id="submit-target-iframe" name="submit-target-iframe" style="display:none;"></iframe>
+
+    <!-- 引入腳本庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+    
+    <!-- 引入主要應用腳本 -->
+    <script src="./js/booking.js"></script>
+    
+    <!-- 錯誤處理腳本 -->
+    <script>
+        // 確保在頁面載入後有步驟元素
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                // 在頁面載入後檢查是否有步驟元素
+                const steps = document.querySelectorAll('.booking-step');
+                if (steps.length === 0) {
+                    console.error('沒有找到步驟元素，嘗試修復');
+                    
+                    // 如果找不到步驟元素，嘗試自動修復
+                    const stepsContainer = document.querySelector('.booking-steps');
+                    if (stepsContainer) {
+                        // 為每個未存在的步驟創建元素
+                        for (let i = 1; i <= 4; i++) {
+                            if (!document.querySelector(`.booking-step.step-${i}`)) {
+                                const stepDiv = document.createElement('div');
+                                stepDiv.className = `booking-step step-${i}`;
+                                stepDiv.style.display = i === 1 ? 'block' : 'none';
+                                stepDiv.innerHTML = `<h2>第${i}步</h2><p>加載中...</p>`;
+                                stepsContainer.appendChild(stepDiv);
+                                console.log(`已創建第${i}步元素`);
+                            }
+                        }
+                    }
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html> 
