@@ -36,7 +36,7 @@ function debugLog(message, data) {
 }
 
 // DOM 元素 - 初始化為空對象
-const elements = {};
+let elements = {};
 
 // 初始化DOM元素引用函數
 function initDOMElements() {
@@ -70,6 +70,9 @@ function initDOMElements() {
         // 第一步：日期选择
         dateRange: document.getElementById('date-range'),
         dateRangeClear: document.getElementById('date-range-clear'),
+        checkInDatePicker: document.getElementById('check-in-date'),
+        checkOutDatePicker: document.getElementById('check-out-date'),
+        dateSummary: document.getElementById('date-summary'),
         guestsCount: document.getElementById('guests-count'),
         decreaseGuests: document.getElementById('decrease-guests'),
         increaseGuests: document.getElementById('increase-guests'),
@@ -119,10 +122,10 @@ let currentStep = 1;
 // 初始化日期选择器
 function initDatePickers() {
     // 获取DOM元素
-    const { checkInDatePicker, checkOutDatePicker, dateSummary, loadingRoomData, dateSelectionContainer } = elements;
+    const { dateRange, dateRangeClear, dateSummary, loadingRoomData, dateSelectionContainer } = elements;
     
     // 确保所有必要的DOM元素都存在
-    if (!checkInDatePicker || !checkOutDatePicker || !dateSummary) {
+    if (!dateRange) {
         console.error('初始化日期选择器失败：缺少必要的DOM元素');
         return;
     }
@@ -207,25 +210,8 @@ function loadAvailabilityData(startDate, endDate) {
     const apiEndpoint = 'https://script.google.com/macros/s/AKfycbytzgaSoli1D-wyn7UJmsSVA5dSVO5HUh7kagwaJsqIlmmpO0XAHxPwHngg8oc82OH6/exec';
     const params = `action=checkAvailabilityCalendar&checkIn=${startDate}&checkOut=${endDate}`;
     
-    // 尝试使用fetch方式请求
-    fetch(`${apiEndpoint}?${params}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('网络响应不正常');
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('获取到可用性数据:', data);
-            if (data && data.availability) {
-                availabilityCache = data.availability;
-            }
-        })
-        .catch(error => {
-            console.error('API调用错误:', error);
-            // 如果fetch失败，尝试使用JSONP方式
-            useJSONPFallback(apiEndpoint, params, handleAvailabilityData);
-        });
+    // 直接使用JSONP方式请求数据
+    useJSONPFallback(apiEndpoint, params, handleAvailabilityData);
 }
 
 // JSONP回调处理可用性数据
@@ -1485,119 +1471,35 @@ function initFlatpickr(availabilityData, calendarFooter) {
                 bookingState.checkOutDate = checkOut;
                 
                 // 更新输入框值
-                const checkInStr = formatDate(checkIn).replace('年', '/').replace('月', '/').replace('日', '');
-                const checkOutStr = formatDate(checkOut).replace('年', '/').replace('月', '/').replace('日', '');
-                elements.dateRange.value = checkInStr + ' - ' + checkOutStr;
+                elements.dateRange.value = formatDate(checkIn).replace('年', '/').replace('月', '/').replace('日', '') + ' - ' + 
+                                         formatDate(checkOut).replace('年', '/').replace('月', '/').replace('日', '');
                 
                 // 显示清除按钮
                 elements.dateRangeClear.style.display = 'flex';
                 
-                // 更新晚数标题
-                const nights = calculateNights(checkIn, checkOut);
-                updateDateSelectionTitle(nights);
-                
-                // 更新住宿天数摘要
+                // 更新摘要
                 updateNightsSummary();
-                
-                // 验证步骤1
                 validateStep1();
-                
-                // 自动关闭日历
-                setTimeout(() => {
-                    instance.close();
-                }, 500);
             }
-        },
-        onOpen: function(selectedDates, dateStr, instance) {
-            // 將底部按鈕添加到日曆
-            if (!document.querySelector('.flatpickr-footer')) {
-                const calendarContainer = instance.calendarContainer;
-                calendarContainer.appendChild(calendarFooter);
-
-                // 綁定底部按鈕事件
-                calendarContainer.querySelector('.flatpickr-clear-btn').addEventListener('click', function() {
-                    instance.clear();
-                });
-                
-                calendarContainer.querySelector('.flatpickr-close-btn').addEventListener('click', function() {
-                    instance.close();
-                });
-            }
-            
-            // 更新底部按鈕文本
-            const clearBtn = instance.calendarContainer.querySelector('.flatpickr-clear-btn');
-            const closeBtn = instance.calendarContainer.querySelector('.flatpickr-close-btn');
-            clearBtn.textContent = '清除日期';
-            closeBtn.textContent = '關閉';
-            
-            // 移動裝置上優化日曆容器
-            if (window.innerWidth < 768) {
-                instance.calendarContainer.classList.add('mobile-optimized');
-                
-                // 確保日曆容器在移動裝置上展開到最大寬度
-                const rContainer = instance.calendarContainer.querySelector('.flatpickr-rContainer');
-                if (rContainer) {
-                    rContainer.style.width = '100%';
-                }
-                
-                // 優化日曆天數容器
-                const daysContainer = instance.calendarContainer.querySelector('.dayContainer');
-                if (daysContainer) {
-                    daysContainer.style.width = '100%';
-                    daysContainer.style.minWidth = '100%';
-                    daysContainer.style.maxWidth = '100%';
-                }
-                
-                // 優化週天顯示
-                const weekdays = instance.calendarContainer.querySelector('.flatpickr-weekdays');
-                if (weekdays) {
-                    weekdays.style.width = '100%';
-                }
-            }
-        },
-        onReady: function(selectedDates, dateStr, instance) {
-            // 確保日曆置中對齊
-            instance.calendarContainer.style.margin = '0 auto';
-            
-            // 修復日期指示器位置
-            setTimeout(() => {
-                const days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
-                days.forEach(day => {
-                    const indicator = day.querySelector('.room-availability-indicator');
-                    if (indicator) {
-                        indicator.style.top = '28px';
-                    }
-                });
-            }, 100);
         }
     };
     
-    // 初始化日期範圍選擇器
-    const datePicker = flatpickr(elements.dateRange, datePickerConfig);
+    // 添加日历底部按钮
+    if (calendarFooter) {
+        datePickerConfig.appendTo = calendarFooter;
+    }
     
-    // 創建元素用於顯示晚數
-    const dateContainer = document.querySelector('.date-picker-container');
-    const nightsTitle = document.createElement('div');
-    nightsTitle.className = 'date-selection-title';
-    nightsTitle.style.display = 'none'; // 默認隱藏
-    dateContainer.parentNode.insertBefore(nightsTitle, dateContainer);
+    // 初始化Flatpickr
+    const fp = flatpickr(elements.dateRange, datePickerConfig);
     
-    // 添加清除按鈕事件
-    elements.dateRangeClear.addEventListener('click', function(e) {
-        e.stopPropagation(); // 阻止事件冒泡，避免觸發日期選擇器
-        datePicker.clear();
-        elements.dateRangeClear.style.display = 'none';
-    });
+    // 添加清除按钮事件
+    if (elements.dateRangeClear) {
+        elements.dateRangeClear.addEventListener('click', function() {
+            fp.clear();
+        });
+    }
     
-    // 監聽視窗大小變化，重新初始化日期選擇器
-    window.addEventListener('resize', function() {
-        const newIsMobile = window.innerWidth < 768;
-        if (newIsMobile !== isMobile) {
-            // 視窗大小跨越斷點，重新初始化日期選擇器
-            datePicker.destroy();
-            initDatePickers();
-        }
-    });
+    return fp;
 }
 
 // API錯誤處理函數
@@ -1673,4 +1575,41 @@ function processAvailabilityData(data) {
             `;
         }
     }
+}
+
+// 更新日期元素显示
+function updateDayElement(dayElem, dateStr, availabilityData) {
+    // 获取可用性数据
+    const availability = availabilityData[dateStr] || { std: 0, lux: 0 };
+    
+    // 创建可用性指示器
+    const indicator = document.createElement('div');
+    indicator.className = 'room-availability-indicator';
+    
+    // 添加标准房可用性
+    if (availability.std > 0) {
+        const stdIndicator = document.createElement('span');
+        stdIndicator.className = 'std-rooms';
+        stdIndicator.textContent = availability.std;
+        indicator.appendChild(stdIndicator);
+    }
+    
+    // 添加豪华房可用性
+    if (availability.lux > 0) {
+        const luxIndicator = document.createElement('span');
+        luxIndicator.className = 'lux-rooms';
+        luxIndicator.textContent = availability.lux;
+        indicator.appendChild(luxIndicator);
+    }
+    
+    // 如果没有可用房间，添加无房指示
+    if (availability.std === 0 && availability.lux === 0) {
+        const noRoomsIndicator = document.createElement('span');
+        noRoomsIndicator.className = 'no-rooms';
+        noRoomsIndicator.textContent = '0';
+        indicator.appendChild(noRoomsIndicator);
+    }
+    
+    // 将指示器添加到日期元素
+    dayElem.appendChild(indicator);
 } 
