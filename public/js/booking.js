@@ -2,7 +2,7 @@
 const bookingState = {
     checkInDate: null,
     checkOutDate: null,
-    guestsCount: 2,
+    guestsCount: 1,
     selectedRoom: null,
     roomData: null,
     totalNights: 0,
@@ -15,6 +15,11 @@ const bookingState = {
         specialRequests: ''
     }
 };
+
+// 房型数据缓存
+let roomDataCache = null;
+// 可用性数据缓存
+let availabilityCache = null;
 
 // 调试模式 (打开可以在控制台看到更多日志)
 const DEBUG = false;
@@ -31,7 +36,7 @@ function debugLog(message, data) {
 }
 
 // DOM 元素 - 初始化為空對象
-let elements = {};
+const elements = {};
 
 // 初始化DOM元素引用函數
 function initDOMElements() {
@@ -113,20 +118,41 @@ let currentStep = 1;
 
 // 初始化日期选择器
 function initDatePickers() {
-    // 确保加载指示器显示
-    const loadingRoomData = document.getElementById('loading-room-data');
-    const dateSelectionContainer = document.getElementById('date-selection-container');
+    // 获取DOM元素
+    const { checkInDatePicker, checkOutDatePicker, dateSummary, loadingRoomData, dateSelectionContainer } = elements;
     
+    // 确保所有必要的DOM元素都存在
+    if (!checkInDatePicker || !checkOutDatePicker || !dateSummary) {
+        console.error('初始化日期选择器失败：缺少必要的DOM元素');
+        return;
+    }
+    
+    // 显示加载指示器
     if (loadingRoomData) {
-        loadingRoomData.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+        loadingRoomData.style.display = 'flex';
     }
     
+    // 隐藏日期选择界面
     if (dateSelectionContainer) {
-        dateSelectionContainer.style.cssText = 'display: none !important;';
+        dateSelectionContainer.style.display = 'none';
     }
     
-    // 获取当前日期
+    // 重置预订状态
+    bookingState.checkInDate = null;
+    bookingState.checkOutDate = null;
+    bookingState.totalNights = 0;
+    
+    // 获取今天的日期和60天后的日期（用于预加载可用性数据）
     const today = new Date();
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + 60);
+    
+    // 格式化日期为字符串格式
+    const todayStr = formatDateYMD(today);
+    const endDateStr = formatDateYMD(endDate);
+    
+    // 預加載房型可用性數據
+    loadAvailabilityData(todayStr, endDateStr);
     
     // 創建日曆底部按鈕區域
     const calendarFooter = document.createElement('div');
@@ -136,44 +162,20 @@ function initDatePickers() {
         <button type="button" class="flatpickr-close-btn">關閉</button>
     `;
     
-    // 預加載房型可用性數據
-    loadAvailabilityData(today, 60)
-    .then(availabilityData => {
-        debugLog('已加載房型可用性數據', availabilityData);
+    // 确保等待至少1.5秒后再隐藏加载指示器（更好的用户体验）
+    setTimeout(() => {
+        // 隱藏加載指示器，顯示日期選擇界面
+        if (loadingRoomData) {
+            loadingRoomData.style.display = 'none';
+        }
         
-        // 確保等待至少1.5秒後再隱藏加載指示器（更好的用戶體驗）
-        setTimeout(() => {
-            // 隱藏加載指示器，顯示日期選擇界面
-            if (loadingRoomData) {
-                loadingRoomData.style.display = 'none';
-            }
-            
-            if (dateSelectionContainer) {
-                dateSelectionContainer.style.display = 'block';
-            }
-            
-            // 初始化日期選擇器
-            initFlatpickr(availabilityData, calendarFooter);
-        }, 1500);
-    })
-    .catch(error => {
-        console.error('加載房型可用性數據失敗:', error);
+        if (dateSelectionContainer) {
+            dateSelectionContainer.style.display = 'block';
+        }
         
-        // 確保等待至少1.5秒後再隱藏加載指示器
-        setTimeout(() => {
-            // 即使加載失敗也顯示日期選擇界面
-            if (loadingRoomData) {
-                loadingRoomData.style.display = 'none';
-            }
-            
-            if (dateSelectionContainer) {
-                dateSelectionContainer.style.display = 'block';
-            }
-            
-            // 使用空數據初始化日期選擇器
-            initFlatpickr({}, calendarFooter);
-        }, 1500);
-    });
+        // 初始化日期選擇器
+        initFlatpickr(availabilityCache || {}, calendarFooter);
+    }, 1500);
 }
 
 // 计算入住晚数
@@ -197,78 +199,209 @@ function updateDateSelectionTitle(nights) {
     }
 }
 
-// 預載房型可用性數據
-function loadAvailabilityData(startDate, numberOfDays) {
-    // 创建结束日期 (开始日期 + numberOfDays天)
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + numberOfDays);
+// 加载可用性数据
+function loadAvailabilityData(startDate, endDate) {
+    console.log('预加载房型可用性数据: 开始日期=' + startDate + ', 结束日期=' + endDate);
     
-    // 格式化日期
-    const checkIn = formatDateYMD(startDate);
-    const checkOut = formatDateYMD(endDate);
+    // API端点和参数
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbytzgaSoli1D-wyn7UJmsSVA5dSVO5HUh7kagwaJsqIlmmpO0XAHxPwHngg8oc82OH6/exec';
+    const params = `action=checkAvailabilityCalendar&checkIn=${startDate}&checkOut=${endDate}`;
     
-    // 控制台输出调试信息
-    console.log(`预加载房型可用性数据: 开始日期=${checkIn}, 结束日期=${checkOut}`);
-    
-    // 返回Promise
-    return fetch(`https://script.google.com/macros/s/AKfycbxPABQzyWk6yndglS0-xaZ_YadRTCtWI97_FsWalDnbH5OHDBOMFeJtOPvfRxXqV8O6/exec?action=checkAvailabilityCalendar&checkIn=${checkIn}&checkOut=${checkOut}`)
-        .then(response => response.json())
+    // 尝试使用fetch方式请求
+    fetch(`${apiEndpoint}?${params}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('网络响应不正常');
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.success && data.availabilityData) {
-                return data.availabilityData;
-            } else {
-                console.error('获取房型可用性数据出错:', data.error);
-                return {};
+            console.log('获取到可用性数据:', data);
+            if (data && data.availability) {
+                availabilityCache = data.availability;
             }
         })
         .catch(error => {
             console.error('API调用错误:', error);
-            return {};
+            // 如果fetch失败，尝试使用JSONP方式
+            useJSONPFallback(apiEndpoint, params, handleAvailabilityData);
         });
 }
 
-// 更新日期单元格，显示房型可用性
-function updateDayElement(dayElem, dateStr, availabilityData) {
-    // 检查是否有该日期的可用性数据
-    if (availabilityData && availabilityData[dateStr]) {
-        const dateData = availabilityData[dateStr];
+// JSONP回调处理可用性数据
+function handleAvailabilityData(data) {
+    console.log('JSONP获取到可用性数据:', data);
+    if (data && data.availability) {
+        availabilityCache = data.availability;
+    }
+}
+
+// 加载房型数据
+function loadRoomTypesData(checkInDate, checkOutDate) {
+    console.log('獲取房型數據：' + checkInDate + ' 至 ' + checkOutDate);
+    
+    // 如果已有缓存数据且日期匹配，则使用缓存
+    if (roomDataCache && roomDataCache.checkInDate === checkInDate && roomDataCache.checkOutDate === checkOutDate) {
+        console.log('使用缓存的房型数据');
+        displayRoomTypes(roomDataCache.data);
+        return;
+    }
+    
+    // 显示加载状态
+    showLoadingState();
+    
+    // API端点和参数
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbytzgaSoli1D-wyn7UJmsSVA5dSVO5HUh7kagwaJsqIlmmpO0XAHxPwHngg8oc82OH6/exec';
+    const params = `action=checkAvailability&checkIn=${checkInDate}&checkOut=${checkOutDate}`;
+    
+    // 尝试使用XMLHttpRequest
+    try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', `${apiEndpoint}?${params}`, true);
         
-        // 创建显示可用性的元素
-        const availabilityElem = document.createElement('div');
-        availabilityElem.className = 'room-availability-indicator';
-        
-        let content = '';
-        let allRoomsUnavailable = true;
-        
-        // 检查不同房型的可用性
-        if (dateData.LAO_S !== undefined) {
-            const available = parseInt(dateData.LAO_S);
-            if (available > 0) {
-                content += `<span class="std-room">${available}</span>`;
-                allRoomsUnavailable = false;
-            } else {
-                content += `<span class="no-room">0</span>`;
-            }
-        }
-        
-        if (dateData.LAO_L !== undefined) {
-            const available = parseInt(dateData.LAO_L);
-            if (available > 0) {
-                content += `<span class="lux-room">${available}</span>`;
-                allRoomsUnavailable = false;
-            } else {
-                content += `<span class="no-room">0</span>`;
-            }
-        }
-        
-        if (content) {
-            availabilityElem.innerHTML = content;
-            dayElem.appendChild(availabilityElem);
+        xhr.onload = function() {
+            // 隐藏加载状态
+            hideLoadingState();
             
-            // 如果所有房型都没有可用房间，则添加禁用样式
-            if (allRoomsUnavailable) {
-                dayElem.classList.add('flatpickr-disabled');
+            if (xhr.status >= 200 && xhr.status < 400) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    console.log('獲取到房型數據:', response);
+                    
+                    if (response.availability) {
+                        // 缓存数据
+                        roomDataCache = {
+                            checkInDate: checkInDate,
+                            checkOutDate: checkOutDate,
+                            data: response.availability
+                        };
+                        
+                        // 显示房型数据
+                        displayRoomTypes(response.availability);
+                    } else if (response.error) {
+                        console.error('API返回错误:', response.error);
+                        showApiError(response.error);
+                    } else {
+                        console.error('未知响应格式');
+                        showApiError('服务器返回未知格式数据');
+                    }
+                } catch (e) {
+                    console.error('解析响应失败:', e);
+                    showApiError('解析数据时出错');
+                }
+            } else {
+                console.error('服务器响应错误:', xhr.status);
+                showApiError('服务器返回错误状态码: ' + xhr.status);
+                
+                // 如果XHR失败，尝试JSONP方式
+                useJSONPFallback(apiEndpoint, params, handleRoomTypesData);
             }
+        };
+        
+        xhr.onerror = function() {
+            console.error('API請求錯誤');
+            hideLoadingState();
+            showApiError('网络请求失败');
+            
+            // 网络错误，尝试JSONP方式
+            useJSONPFallback(apiEndpoint, params, handleRoomTypesData);
+        };
+        
+        xhr.send();
+    } catch (error) {
+        console.error('发送请求出错:', error);
+        hideLoadingState();
+        showApiError('发送请求时出错: ' + error.message);
+        
+        // 捕获到异常，尝试JSONP方式
+        useJSONPFallback(apiEndpoint, params, handleRoomTypesData);
+    }
+}
+
+// JSONP回调处理房型数据
+function handleRoomTypesData(response) {
+    console.log('JSONP获取到房型数据:', response);
+    hideLoadingState();
+    
+    if (response.availability) {
+        // 将数据传递给显示函数
+        displayRoomTypes(response.availability);
+        
+        // 更新缓存
+        if (elements.checkInDatePicker && elements.checkOutDatePicker) {
+            const checkInDate = elements.checkInDatePicker.value;
+            const checkOutDate = elements.checkOutDatePicker.value;
+            
+            roomDataCache = {
+                checkInDate: checkInDate,
+                checkOutDate: checkOutDate,
+                data: response.availability
+            };
+        }
+    } else if (response.error) {
+        console.error('API返回错误:', response.error);
+        showApiError(response.error);
+    } else {
+        showApiError('服务器返回未知格式数据');
+    }
+}
+
+// JSONP回退方法
+function useJSONPFallback(apiEndpoint, params, callback) {
+    console.log('尝试使用JSONP方法获取数据');
+    
+    // 创建唯一的回调函数名
+    const callbackName = 'jsonpCallback' + Date.now();
+    
+    // 注册全局回调函数
+    window[callbackName] = function(data) {
+        // 调用回调处理数据
+        callback(data);
+        
+        // 清理
+        document.body.removeChild(script);
+        delete window[callbackName];
+    };
+    
+    // 创建script元素
+    const script = document.createElement('script');
+    script.src = `${apiEndpoint}?${params}&callback=${callbackName}`;
+    
+    // 处理加载错误
+    script.onerror = function() {
+        console.error('JSONP请求失败');
+        document.body.removeChild(script);
+        delete window[callbackName];
+        showApiError('所有数据获取方法均已失败，请稍后再试');
+    };
+    
+    // 添加到文档
+    document.body.appendChild(script);
+}
+
+// 显示API错误
+function showApiError(message) {
+    if (elements.roomList) {
+        elements.roomList.innerHTML = `
+            <div class="api-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>获取数据时出错: ${message}</p>
+                <button class="retry-button" onclick="retryLoadRoomTypes()">重试</button>
+            </div>
+        `;
+    }
+}
+
+// 重试加载房型
+function retryLoadRoomTypes() {
+    if (elements.checkInDatePicker && elements.checkOutDatePicker) {
+        const checkInDate = elements.checkInDatePicker.value;
+        const checkOutDate = elements.checkOutDatePicker.value;
+        
+        if (checkInDate && checkOutDate) {
+            loadRoomTypesData(checkInDate, checkOutDate);
+        } else {
+            showApiError('请先选择入住和退房日期');
         }
     }
 }
@@ -350,15 +483,18 @@ function loadAvailableRooms() {
     const checkOutDateStr = formatDateYMD(bookingState.checkOutDate);
     
     // API端點
-    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbxPABQzyWk6yndglS0-xaZ_YadRTCtWI97_FsWalDnbH5OHDBOMFeJtOPvfRxXqV8O6/exec';
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbytzgaSoli1D-wyn7UJmsSVA5dSVO5HUh7kagwaJsqIlmmpO0XAHxPwHngg8oc82OH6/exec';
     
-    // 使用純 fetch 方式獲取數據（使用 no-cors 模式）
+    // 參數字符串
+    const params = `action=checkAvailability&checkIn=${checkInDateStr}&checkOut=${checkOutDateStr}`;
+    
+    // 日志输出
     console.log(`獲取房型數據：${checkInDateStr} 至 ${checkOutDateStr}`);
     
     // 創建URL
-    const apiUrl = `${apiEndpoint}?action=checkAvailability&checkIn=${checkInDateStr}&checkOut=${checkOutDateStr}`;
+    const apiUrl = `${apiEndpoint}?${params}`;
     
-    // 使用傳統XMLHttpRequest來發送請求，避免跨域問題
+    // 使用傳統XMLHttpRequest來發送請求
     const xhr = new XMLHttpRequest();
     xhr.open('GET', apiUrl, true);
     
@@ -375,10 +511,16 @@ function loadAvailableRooms() {
             } catch (e) {
                 console.error('解析房型數據失敗:', e);
                 handleApiError();
+                
+                // 尝试JSONP作为备选方案
+                useJSONPFallback(apiEndpoint, params, handleAvailabilityResponse);
             }
         } else {
             console.error('API請求失敗:', xhr.status);
             handleApiError();
+            
+            // 请求失败，尝试JSONP
+            useJSONPFallback(apiEndpoint, params, handleAvailabilityResponse);
         }
     };
     
@@ -386,12 +528,18 @@ function loadAvailableRooms() {
     xhr.onerror = function() {
         console.error('API請求錯誤');
         handleApiError();
+        
+        // 网络错误，尝试JSONP
+        useJSONPFallback(apiEndpoint, params, handleAvailabilityResponse);
     };
     
     // 監聽超時事件
     xhr.ontimeout = function() {
         console.error('API請求超時');
         handleApiError();
+        
+        // 超时，尝试JSONP
+        useJSONPFallback(apiEndpoint, params, handleAvailabilityResponse);
     };
     
     // 發送請求
@@ -400,80 +548,40 @@ function loadAvailableRooms() {
     } catch (e) {
         console.error('發送API請求時出錯:', e);
         handleApiError();
+        
+        // 请求异常，尝试JSONP
+        useJSONPFallback(apiEndpoint, params, handleAvailabilityResponse);
+    }
+}
+
+// 处理可用性数据的JSONP回调
+function handleAvailabilityResponse(data) {
+    console.log('JSONP获取到房型可用性数据:', data);
+    
+    // 隐藏加载指示器
+    if (elements.loadingRooms) {
+        elements.loadingRooms.style.display = 'none';
     }
     
-    // API錯誤處理函數
-    function handleApiError() {
-        // 隱藏加載指示器
-        if (elements.loadingRooms) {
-            elements.loadingRooms.style.display = 'none';
-        }
+    // 处理数据
+    if (data && !data.error) {
+        processAvailabilityData(data);
+    } else {
+        console.error('JSONP API返回错误:', data ? data.error : '未知错误');
         
-        // 顯示錯誤信息
+        // 显示错误信息
         if (elements.availableRooms) {
             elements.availableRooms.innerHTML = `
                 <div class="api-error">
                     <div class="error-icon">
                         <i class="fas fa-exclamation-triangle"></i>
                     </div>
-                    <h3>無法獲取房型數據</h3>
-                    <p>很抱歉，無法連接到伺服器獲取房型信息。</p>
-                    <p>請稍後再試，或直接聯絡我們預訂：</p>
-                    <p class="contact"><i class="fas fa-phone"></i> +886 12345678</p>
-                    <button id="retry-load-rooms" class="retry-btn">重試</button>
+                    <div class="error-message">
+                        <p>无法加载房型数据，请稍后再试</p>
+                        <button onclick="loadAvailableRooms()" class="retry-button">重试</button>
+                    </div>
                 </div>
             `;
-            
-            // 添加重試按鈕事件
-            const retryButton = document.getElementById('retry-load-rooms');
-            if (retryButton) {
-                retryButton.addEventListener('click', loadAvailableRooms);
-            }
-        }
-    }
-    
-    // 處理可用性數據的函數
-    function processAvailabilityData(data) {
-        // 隱藏加載指示器
-        if (elements.loadingRooms) {
-            elements.loadingRooms.style.display = 'none';
-        }
-        
-        if (data.success && data.availability && Array.isArray(data.availability)) {
-            console.log('獲取到房型數據:', data.availability);
-            
-            // 保存可用房型數據
-            const enhancedRooms = enhanceRoomData(data.availability);
-            bookingState.roomData = enhancedRooms;
-            
-            // 過濾可用房型
-            const availableRooms = filterAvailableRooms(enhancedRooms);
-            
-            if (availableRooms.length === 0) {
-                // 沒有可用房型
-                if (elements.availableRooms) {
-                    elements.availableRooms.innerHTML = `
-                        <div class="no-rooms-message">
-                            <p>該日期範圍內沒有可用房型</p>
-                            <p>請嘗試選擇其他日期</p>
-                        </div>
-                    `;
-                }
-            } else {
-                // 渲染可用房型列表
-                renderAvailableRooms(availableRooms);
-            }
-        } else {
-            console.error('獲取可用房型失敗:', data.error || '未知錯誤');
-            
-            if (elements.availableRooms) {
-                elements.availableRooms.innerHTML = `
-                    <div class="no-rooms-message">
-                        <p>獲取可用房型時發生錯誤</p>
-                        <p>請稍後重試</p>
-                    </div>
-                `;
-            }
         }
     }
 }
@@ -718,7 +826,7 @@ function submitBooking() {
     };
     
     // API端點
-    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbxPABQzyWk6yndglS0-xaZ_YadRTCtWI97_FsWalDnbH5OHDBOMFeJtOPvfRxXqV8O6/exec';
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbytzgaSoli1D-wyn7UJmsSVA5dSVO5HUh7kagwaJsqIlmmpO0XAHxPwHngg8oc82OH6/exec';
     
     // 使用XMLHttpRequest發送數據
     try {
@@ -1490,4 +1598,79 @@ function initFlatpickr(availabilityData, calendarFooter) {
             initDatePickers();
         }
     });
+}
+
+// API錯誤處理函數
+function handleApiError() {
+    // 隱藏加載指示器
+    if (elements.loadingRooms) {
+        elements.loadingRooms.style.display = 'none';
+    }
+    
+    // 顯示錯誤信息
+    if (elements.availableRooms) {
+        elements.availableRooms.innerHTML = `
+            <div class="api-error">
+                <div class="error-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3>無法獲取房型數據</h3>
+                <p>很抱歉，無法連接到伺服器獲取房型信息。</p>
+                <p>請稍後再試，或直接聯絡我們預訂：</p>
+                <p class="contact"><i class="fas fa-phone"></i> +886 12345678</p>
+                <button id="retry-load-rooms" class="retry-btn">重試</button>
+            </div>
+        `;
+        
+        // 添加重試按鈕事件
+        const retryButton = document.getElementById('retry-load-rooms');
+        if (retryButton) {
+            retryButton.addEventListener('click', loadAvailableRooms);
+        }
+    }
+}
+
+// 處理可用性數據的函數
+function processAvailabilityData(data) {
+    // 隱藏加載指示器
+    if (elements.loadingRooms) {
+        elements.loadingRooms.style.display = 'none';
+    }
+    
+    if (data.success && data.availability && Array.isArray(data.availability)) {
+        console.log('獲取到房型數據:', data.availability);
+        
+        // 保存可用房型數據
+        const enhancedRooms = enhanceRoomData(data.availability);
+        bookingState.roomData = enhancedRooms;
+        
+        // 過濾可用房型
+        const availableRooms = filterAvailableRooms(enhancedRooms);
+        
+        if (availableRooms.length === 0) {
+            // 沒有可用房型
+            if (elements.availableRooms) {
+                elements.availableRooms.innerHTML = `
+                    <div class="no-rooms-message">
+                        <p>該日期範圍內沒有可用房型</p>
+                        <p>請嘗試選擇其他日期</p>
+                    </div>
+                `;
+            }
+        } else {
+            // 渲染可用房型列表
+            renderAvailableRooms(availableRooms);
+        }
+    } else {
+        console.error('獲取可用房型失敗:', data.error || '未知錯誤');
+        
+        if (elements.availableRooms) {
+            elements.availableRooms.innerHTML = `
+                <div class="no-rooms-message">
+                    <p>獲取可用房型時發生錯誤</p>
+                    <p>請稍後重試</p>
+                </div>
+            `;
+        }
+    }
 } 

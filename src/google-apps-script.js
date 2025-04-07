@@ -18,17 +18,11 @@ const AVAILABILITY_SHEET_NAME = 'Availability';
  * 处理Web请求的主函数
  */
 function doGet(e) {
-  // 设置CORS headers，允许来自任何来源的请求
+  // 创建输出对象
   const output = ContentService.createTextOutput();
-  output.setMimeType(ContentService.MimeType.JSON);
   
-  // 添加CORS头部信息
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '86400'
-  };
+  // 检查是否是JSONP请求
+  const callback = e.parameter.callback;
   
   // 解析请求参数
   const params = e.parameter;
@@ -59,29 +53,54 @@ function doGet(e) {
     Logger.log('doGet处理错误: ' + error.toString());
   }
   
-  // 返回JSON结果
-  const jsonOutput = JSON.stringify(result);
-  output.setContent(jsonOutput);
+  // 将结果转换为JSON
+  const jsonString = JSON.stringify(result);
   
-  // 添加头部并返回
+  // 设置CORS头部
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json'
+  };
+  
+  // 如果是JSONP请求，包装在回调函数中
+  if (callback) {
+    output.setContent(callback + '(' + jsonString + ')');
+    output.setMimeType(ContentService.MimeType.JAVASCRIPT);
+  } else {
+    output.setContent(jsonString);
+    output.setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // 记录最终返回的结果，用于调试
+  Logger.log('API返回结果: ' + (callback ? 'JSONP回调' : jsonString));
+  
+  // 重要：使用setHeaders而不是addHeaders
   return output.setHeaders(headers);
 }
 
 /**
  * 处理OPTIONS请求（预检请求）
  */
-function doOptions() {
+function doOptions(e) {
+  // 创建输出对象
   const output = ContentService.createTextOutput();
   output.setMimeType(ContentService.MimeType.JSON);
   
   // 设置CORS头部，允许所有源、方法和请求头
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Max-Age': '86400'
+    'Access-Control-Max-Age': '86400',
+    'Content-Type': 'application/json'
   };
   
+  // 记录OPTIONS请求
+  Logger.log('收到OPTIONS预检请求');
+  
+  // 返回空内容但带有正确的CORS头部
   return output.setHeaders(headers);
 }
 
@@ -89,17 +108,9 @@ function doOptions() {
  * 处理POST请求（用于提交预订）
  */
 function doPost(e) {
-  // 设置CORS headers
+  // 创建输出对象
   const output = ContentService.createTextOutput();
   output.setMimeType(ContentService.MimeType.JSON);
-  
-  // 添加CORS头部信息
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '86400'
-  };
   
   let result = {};
   
@@ -131,14 +142,22 @@ function doPost(e) {
     Logger.log('doPost处理错误: ' + error.toString());
   }
   
-  // 返回JSON结果
-  const jsonOutput = JSON.stringify(result);
-  output.setContent(jsonOutput);
+  // 将结果转换为JSON
+  const jsonString = JSON.stringify(result);
+  output.setContent(jsonString);
+  
+  // 设置CORS头部
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json'
+  };
   
   // 记录最终返回的结果，用于调试
-  Logger.log('API返回结果: ' + jsonOutput);
+  Logger.log('API返回结果: ' + jsonString);
   
-  // 添加头部并返回
+  // 重要：使用setHeaders而不是addHeaders
   return output.setHeaders(headers);
 }
 
