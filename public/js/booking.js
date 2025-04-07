@@ -211,7 +211,7 @@ function loadAvailabilityData(startDate, numberOfDays) {
     console.log(`预加载房型可用性数据: 开始日期=${checkIn}, 结束日期=${checkOut}`);
     
     // 返回Promise
-    return fetch(`https://script.google.com/macros/s/AKfycbw1_qm99-hav0GKPTcZNdlOawoUU2o62w5gS2Jv5DbLdTepcpXspuAcsEfp7aLz7sbB/exec?action=checkAvailabilityCalendar&checkIn=${checkIn}&checkOut=${checkOut}`)
+    return fetch(`https://script.google.com/macros/s/AKfycbxPABQzyWk6yndglS0-xaZ_YadRTCtWI97_FsWalDnbH5OHDBOMFeJtOPvfRxXqV8O6/exec?action=checkAvailabilityCalendar&checkIn=${checkIn}&checkOut=${checkOut}`)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.availabilityData) {
@@ -350,7 +350,7 @@ function loadAvailableRooms() {
     const checkOutDateStr = formatDateYMD(bookingState.checkOutDate);
     
     // API端點
-    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbw1_qm99-hav0GKPTcZNdlOawoUU2o62w5gS2Jv5DbLdTepcpXspuAcsEfp7aLz7sbB/exec';
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbxPABQzyWk6yndglS0-xaZ_YadRTCtWI97_FsWalDnbH5OHDBOMFeJtOPvfRxXqV8O6/exec';
     
     // 使用純 fetch 方式獲取數據（使用 no-cors 模式）
     console.log(`獲取房型數據：${checkInDateStr} 至 ${checkOutDateStr}`);
@@ -697,27 +697,28 @@ function submitBooking() {
         return;
     }
     
-    // 准备要发送到Google Sheets的数据
+    // 使用标准化的字段名称（与后端匹配）
     const bookingData = {
-        booking_id: generateBookingId(),
-        booking_date: formatDate(new Date()),
-        room_id: bookingState.selectedRoom,
-        room_name: selectedRoomData.name,
-        check_in_date: formatDate(bookingState.checkInDate),
-        check_out_date: formatDate(bookingState.checkOutDate),
+        action: 'submitBooking',  // 添加action字段
+        roomId: bookingState.selectedRoom,
+        roomName: selectedRoomData.name,
+        checkInDate: formatDate(bookingState.checkInDate),
+        checkOutDate: formatDate(bookingState.checkOutDate),
         nights: bookingState.totalNights,
         guests: bookingState.guestsCount,
-        total_price: bookingState.totalPrice,
-        guest_name: bookingState.formData.name,
-        guest_phone: bookingState.formData.phone,
-        guest_email: bookingState.formData.email,
-        arrival_time: bookingState.formData.arrivalTime,
-        special_requests: bookingState.formData.specialRequests,
-        status: '待確認'
+        totalPrice: bookingState.totalPrice,
+        guestName: bookingState.formData.name,
+        guestPhone: bookingState.formData.phone,
+        guestEmail: bookingState.formData.email,
+        arrivalTime: bookingState.formData.arrivalTime,
+        specialRequests: bookingState.formData.specialRequests,
+        status: '待確認',
+        bookingDate: formatDate(new Date()),
+        bookingId: generateBookingId()
     };
     
     // API端點
-    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbw1_qm99-hav0GKPTcZNdlOawoUU2o62w5gS2Jv5DbLdTepcpXspuAcsEfp7aLz7sbB/exec';
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbxPABQzyWk6yndglS0-xaZ_YadRTCtWI97_FsWalDnbH5OHDBOMFeJtOPvfRxXqV8O6/exec';
     
     // 使用XMLHttpRequest發送數據
     try {
@@ -726,7 +727,7 @@ function submitBooking() {
         xhr.setRequestHeader('Content-Type', 'application/json');
         
         // 設置超時時間
-        xhr.timeout = 15000; // 15秒超時
+        xhr.timeout = 30000; // 30秒超時，增加超时以确保处理时间足够
         
         // 處理回應
         xhr.onload = function() {
@@ -743,7 +744,7 @@ function submitBooking() {
                         
                         // 使用返回的bookingId更新bookingData
                         if (response.bookingId) {
-                            bookingData.booking_id = response.bookingId;
+                            bookingData.bookingId = response.bookingId;
                         }
                         
                         // 更新最終預訂詳情
@@ -793,16 +794,10 @@ function submitBooking() {
         };
         
         // 日誌記錄將要發送的數據
-        console.log('準備提交預訂數據:', {
-            action: 'submitBooking',
-            ...bookingData
-        });
+        console.log('準備提交預訂數據:', bookingData);
         
         // 發送請求
-        xhr.send(JSON.stringify({
-            action: 'submitBooking',
-            ...bookingData
-        }));
+        xhr.send(JSON.stringify(bookingData));
     } catch (error) {
         console.error('預訂提交錯誤:', error);
         handleDirectSubmitSuccess(bookingData);
@@ -830,6 +825,14 @@ function handleDirectSubmitSuccess(bookingData) {
             </p>
         `;
         elements.bookingSuccess.insertBefore(warningElement, elements.bookingSuccess.querySelector('.booking-details'));
+        
+        // 將數據保存到本地存儲，以便後續可能的重新提交
+        try {
+            localStorage.setItem('pendingBooking', JSON.stringify(bookingData));
+            console.log('預訂數據已保存到本地存儲，以便後續重新提交');
+        } catch (e) {
+            console.error('無法將預訂數據保存到本地存儲:', e);
+        }
         
         // 更新最終預訂詳情
         updateFinalBookingDetails(bookingData);
@@ -869,13 +872,13 @@ function generateBookingId() {
 // 更新最终预订详情
 function updateFinalBookingDetails(bookingData) {
     const detailsHTML = `
-        <h3>预订号: ${bookingData.booking_id}</h3>
-        <p><strong>房型:</strong> ${bookingData.room_name}</p>
-        <p><strong>入住日期:</strong> ${bookingData.check_in_date}</p>
-        <p><strong>退房日期:</strong> ${bookingData.check_out_date}</p>
+        <h3>预订号: ${bookingData.bookingId}</h3>
+        <p><strong>房型:</strong> ${bookingData.roomName}</p>
+        <p><strong>入住日期:</strong> ${bookingData.checkInDate}</p>
+        <p><strong>退房日期:</strong> ${bookingData.checkOutDate}</p>
         <p><strong>住宿天数:</strong> ${bookingData.nights}晚</p>
         <p><strong>入住人数:</strong> ${bookingData.guests}人</p>
-        <p><strong>总价:</strong> NT$ ${bookingData.total_price}</p>
+        <p><strong>总价:</strong> NT$ ${bookingData.totalPrice}</p>
         <p><strong>预订状态:</strong> ${bookingData.status}</p>
     `;
     
