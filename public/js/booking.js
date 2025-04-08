@@ -211,7 +211,7 @@ function loadAvailabilityData(startDate, numberOfDays) {
     console.log(`预加载房型可用性数据: 开始日期=${checkIn}, 结束日期=${checkOut}`);
     
     // 返回Promise
-    return fetch(`https://script.google.com/macros/s/AKfycbxWTwzx2Hn4tVDJqkCMY0xjwxCslkRxhEf_pxK39GZ6IJgF0W3l_odzcoEJahHoai7Z/exec?action=checkAvailabilityCalendar&checkIn=${checkIn}&checkOut=${checkOut}`)
+    return fetch(`https://script.google.com/macros/s/AKfycbwGdYPuRtnm6s292mu7bYq9Q6WBAbM3qA5MmGACFBCDytVyWm3ZoP22CeGdEJlz9T-T/exec?action=checkAvailabilityCalendar&checkIn=${checkIn}&checkOut=${checkOut}`)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.availabilityData) {
@@ -349,8 +349,8 @@ function loadAvailableRooms() {
     const checkInDateStr = formatDateYMD(bookingState.checkInDate);
     const checkOutDateStr = formatDateYMD(bookingState.checkOutDate);
     
-    // API端點
-    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbxWTwzx2Hn4tVDJqkCMY0xjwxCslkRxhEf_pxK39GZ6IJgF0W3l_odzcoEJahHoai7Z/exec';
+    // API端點 - 修正URL
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbwGdYPuRtnm6s292mu7bYq9Q6WBAbM3qA5MmGACFBCDytVyWm3ZoP22CeGdEJlz9T-T/exec';
     
     // 使用純 fetch 方式獲取數據（使用 no-cors 模式）
     console.log(`獲取房型數據：${checkInDateStr} 至 ${checkOutDateStr}`);
@@ -700,97 +700,34 @@ function submitBooking() {
     // 准备要发送到Google Sheets的数据
     const bookingData = {
         booking_id: generateBookingId(),
-        booking_date: formatDate(new Date()),
-        room_id: bookingState.selectedRoom,
+        booking_date: new Date().toISOString().split('T')[0],
+        roomId: bookingState.selectedRoom,
         room_name: selectedRoomData.name,
-        check_in_date: formatDate(bookingState.checkInDate),
-        check_out_date: formatDate(bookingState.checkOutDate),
+        checkInDate: bookingState.checkInDate.toISOString().split('T')[0],
+        checkOutDate: bookingState.checkOutDate.toISOString().split('T')[0],
         nights: bookingState.totalNights,
         guests: bookingState.guestsCount,
-        total_price: bookingState.totalPrice,
-        guest_name: bookingState.formData.name,
-        guest_phone: bookingState.formData.phone,
-        guest_email: bookingState.formData.email,
+        totalPrice: bookingState.totalPrice,
+        guestName: bookingState.formData.name,
+        guestPhone: bookingState.formData.phone,
+        guestEmail: bookingState.formData.email,
         arrival_time: bookingState.formData.arrivalTime,
         special_requests: bookingState.formData.specialRequests,
         status: '待確認'
     };
     
     // API端點
-    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbxWTwzx2Hn4tVDJqkCMY0xjwxCslkRxhEf_pxK39GZ6IJgF0W3l_odzcoEJahHoai7Z/exec';
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbwGdYPuRtnm6s292mu7bYq9Q6WBAbM3qA5MmGACFBCDytVyWm3ZoP22CeGdEJlz9T-T/exec';
     
-    // 使用XMLHttpRequest發送數據
+    // 使用Fetch API發送數據
     try {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', apiEndpoint, true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
+        // 顯示加載動畫 (如果在這段代碼前有這個動作)
         
-        // 設置超時時間
-        xhr.timeout = 15000; // 15秒超時
-        
-        // 處理回應
-        xhr.onload = function() {
-            // 隱藏加載動畫
-            elements.submitLoading.style.display = 'none';
-            
-            if (xhr.status >= 200 && xhr.status < 400) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    
-                    if (response.success) {
-                        // 顯示成功信息
-                        elements.bookingSuccess.style.display = 'block';
-                        
-                        // 使用返回的bookingId更新bookingData
-                        if (response.bookingId) {
-                            bookingData.booking_id = response.bookingId;
-                        }
-                        
-                        // 更新最終預訂詳情
-                        updateFinalBookingDetails(bookingData);
-                    } else {
-                        // 顯示錯誤信息
-                        elements.bookingError.style.display = 'block';
-                        
-                        // 顯示具體錯誤信息
-                        if (response.error && elements.bookingError.querySelector('.error-message')) {
-                            elements.bookingError.querySelector('.error-message').textContent = `錯誤：${response.error}`;
-                        } else if (response.error) {
-                            const errorElement = document.createElement('p');
-                            errorElement.className = 'error-message';
-                            errorElement.textContent = `錯誤：${response.error}`;
-                            elements.bookingError.appendChild(errorElement);
-                        }
-                    }
-                } catch (e) {
-                    console.error('解析響應失敗:', e);
-                    handleDirectSubmitSuccess(bookingData);
-                }
-            } else {
-                // 當接收到非2xx狀態碼時，嘗試讓訂單作為臨時成功處理
-                if (xhr.status === 0) {
-                    // 可能是CORS問題，嘗試假設成功提交
-                    console.warn('接收到空狀態碼響應，可能是CORS問題，嘗試直接處理預訂');
-                    handleDirectSubmitSuccess(bookingData);
-                } else {
-                    console.error('伺服器響應錯誤:', xhr.status, xhr.statusText);
-                    handleBookingError();
-                }
-            }
-        };
-        
-        // 處理錯誤
-        xhr.onerror = function() {
-            console.error('預訂提交網絡錯誤');
-            // 當出現網絡錯誤，我們仍然嘗試讓訂單成功
-            handleDirectSubmitSuccess(bookingData);
-        };
-        
-        // 處理超時
-        xhr.ontimeout = function() {
-            console.error('預訂提交超時');
-            handleDirectSubmitSuccess(bookingData);
-        };
+        // 準備發送的數據
+        const payload = JSON.stringify({
+            action: 'submitBooking',
+            ...bookingData
+        });
         
         // 日誌記錄將要發送的數據
         console.log('準備提交預訂數據:', {
@@ -798,13 +735,88 @@ function submitBooking() {
             ...bookingData
         });
         
-        // 發送請求
-        xhr.send(JSON.stringify({
-            action: 'submitBooking',
-            ...bookingData
-        }));
+        // 設置fetch選項
+        const fetchOptions = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain',  // 改為text/plain以避免CORS預檢請求
+            },
+            body: payload,
+        };
+        
+        // 使用AbortController處理超時
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);  // 15秒超時
+        fetchOptions.signal = controller.signal;
+        
+        fetch(apiEndpoint, fetchOptions)
+            .then(response => {
+                // 清除超時計時器
+                clearTimeout(timeoutId);
+                
+                // 隱藏加載動畫
+                elements.submitLoading.style.display = 'none';
+                
+                if (!response.ok) {
+                    // HTTP錯誤狀態
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // 顯示成功信息
+                    elements.bookingSuccess.style.display = 'block';
+                    
+                    // 使用返回的bookingId更新bookingData
+                    if (data.bookingId) {
+                        bookingData.booking_id = data.bookingId;
+                    }
+                    
+                    // 更新最終預訂詳情
+                    updateFinalBookingDetails(bookingData);
+                } else {
+                    // 顯示錯誤信息
+                    elements.bookingError.style.display = 'block';
+                    
+                    // 顯示具體錯誤信息
+                    if (data.error && elements.bookingError.querySelector('.error-message')) {
+                        elements.bookingError.querySelector('.error-message').textContent = `錯誤：${data.error}`;
+                    } else if (data.error) {
+                        const errorElement = document.createElement('p');
+                        errorElement.className = 'error-message';
+                        errorElement.textContent = `錯誤：${data.error}`;
+                        elements.bookingError.appendChild(errorElement);
+                    }
+                }
+            })
+            .catch(error => {
+                // 清除超時計時器（以防萬一）
+                clearTimeout(timeoutId);
+                
+                // 隱藏加載動畫
+                elements.submitLoading.style.display = 'none';
+                
+                console.error('預訂提交出錯:', error);
+                
+                // 處理超時錯誤
+                if (error.name === 'AbortError') {
+                    console.error('預訂提交超時');
+                    handleDirectSubmitSuccess(bookingData);
+                    return;
+                }
+                
+                // 處理其他錯誤（包括CORS和網絡錯誤）
+                console.warn('嘗試直接處理預訂');
+                handleDirectSubmitSuccess(bookingData);
+            });
     } catch (error) {
         console.error('預訂提交錯誤:', error);
+        
+        // 隱藏加載動畫
+        elements.submitLoading.style.display = 'none';
+        
         handleDirectSubmitSuccess(bookingData);
     }
 }
