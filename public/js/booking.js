@@ -346,8 +346,16 @@ function loadAvailableRooms() {
     // 重置选中的房型
     bookingState.selectedRoom = null;
     
+    // 使用formatDateYMD确保正确的日期格式
     const checkInDateStr = formatDateYMD(bookingState.checkInDate);
     const checkOutDateStr = formatDateYMD(bookingState.checkOutDate);
+    
+    // 记录日期信息用于调试
+    console.log('獲取房型數據 (台北时区)：');
+    console.log('入住日期对象:', bookingState.checkInDate);
+    console.log('入住日期格式化:', checkInDateStr);
+    console.log('退房日期对象:', bookingState.checkOutDate);
+    console.log('退房日期格式化:', checkOutDateStr);
     
     // API端點 - 修正URL
     const apiEndpoint = 'https://script.google.com/macros/s/AKfycbwmGApkplKALCQiprOfd2p4ohs0mGhA8UDgsA-qikksOW3fLLoG_DbgGRp9H-mSGrPS/exec';
@@ -479,9 +487,15 @@ function loadAvailableRooms() {
 }
 
 function formatDateYMD(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    // 确保使用台北时区（UTC+8）
+    const options = { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' };
+    const formatter = new Intl.DateTimeFormat('zh-TW', options);
+    const parts = formatter.formatToParts(date);
+    
+    const year = parts.find(part => part.type === 'year').value;
+    const month = parts.find(part => part.type === 'month').value;
+    const day = parts.find(part => part.type === 'day').value;
+    
     return `${year}-${month}-${day}`;
 }
 
@@ -697,14 +711,26 @@ function submitBooking() {
         return;
     }
     
+    // 使用统一的formatDateYMD函数处理日期
+    const today = new Date();
+    const checkInFormatted = formatDateYMD(bookingState.checkInDate);
+    const checkOutFormatted = formatDateYMD(bookingState.checkOutDate);
+    
+    // 打印日期信息用于调试
+    console.log('日期信息 (台北时区):');
+    console.log('入住日期对象:', bookingState.checkInDate);
+    console.log('入住日期格式化:', checkInFormatted);
+    console.log('退房日期对象:', bookingState.checkOutDate);
+    console.log('退房日期格式化:', checkOutFormatted);
+    
     // 准备要发送到Google Sheets的数据
     const bookingData = {
         booking_id: generateBookingId(),
-        booking_date: new Date().toISOString().split('T')[0],
+        booking_date: formatDateYMD(today),
         roomId: bookingState.selectedRoom,
         room_name: selectedRoomData.name,
-        checkInDate: bookingState.checkInDate.toISOString().split('T')[0],
-        checkOutDate: bookingState.checkOutDate.toISOString().split('T')[0],
+        checkInDate: checkInFormatted,
+        checkOutDate: checkOutFormatted,
         nights: bookingState.totalNights,
         guests: bookingState.guestsCount,
         totalPrice: bookingState.totalPrice,
@@ -719,18 +745,16 @@ function submitBooking() {
     // API端點
     const apiEndpoint = 'https://script.google.com/macros/s/AKfycbwmGApkplKALCQiprOfd2p4ohs0mGhA8UDgsA-qikksOW3fLLoG_DbgGRp9H-mSGrPS/exec';
     
+    // 日誌記錄將要發送的數據
+    console.log('準備提交預訂數據:', {
+        action: 'submitBooking',
+        ...bookingData
+    });
+    
     // 使用Fetch API發送數據
     try {
-        // 顯示加載動畫 (如果在這段代碼前有這個動作)
-        
         // 準備發送的數據
         const payload = JSON.stringify({
-            action: 'submitBooking',
-            ...bookingData
-        });
-        
-        // 日誌記錄將要發送的數據
-        console.log('準備提交預訂數據:', {
             action: 'submitBooking',
             ...bookingData
         });
@@ -832,6 +856,9 @@ function handleDirectSubmitSuccess(bookingData) {
     if (elements.bookingSuccess) {
         elements.bookingSuccess.style.display = 'block';
         
+        // 添加日志
+        console.log('处理直接提交成功，预订数据:', bookingData);
+        
         // 顯示警告信息（預訂尚未確認）
         const warningElement = document.createElement('div');
         warningElement.className = 'booking-warning';
@@ -841,7 +868,12 @@ function handleDirectSubmitSuccess(bookingData) {
                 由於連接問題，您的預訂資料尚未發送到我們的系統。請聯絡我們確認您的預訂。
             </p>
         `;
-        elements.bookingSuccess.insertBefore(warningElement, elements.bookingSuccess.querySelector('.booking-details'));
+        
+        // 确保不重复添加警告
+        const existingWarning = elements.bookingSuccess.querySelector('.booking-warning');
+        if (!existingWarning) {
+            elements.bookingSuccess.insertBefore(warningElement, elements.bookingSuccess.querySelector('.booking-details'));
+        }
         
         // 更新最終預訂詳情
         updateFinalBookingDetails(bookingData);
@@ -880,14 +912,17 @@ function generateBookingId() {
 
 // 更新最终预订详情
 function updateFinalBookingDetails(bookingData) {
+    // 打印预订数据用于调试
+    console.log('更新预订详情时的数据:', bookingData);
+    
     const detailsHTML = `
         <h3>预订号: ${bookingData.booking_id}</h3>
         <p><strong>房型:</strong> ${bookingData.room_name}</p>
-        <p><strong>入住日期:</strong> ${bookingData.check_in_date}</p>
-        <p><strong>退房日期:</strong> ${bookingData.check_out_date}</p>
+        <p><strong>入住日期:</strong> ${bookingData.checkInDate}</p>
+        <p><strong>退房日期:</strong> ${bookingData.checkOutDate}</p>
         <p><strong>住宿天数:</strong> ${bookingData.nights}晚</p>
         <p><strong>入住人数:</strong> ${bookingData.guests}人</p>
-        <p><strong>总价:</strong> NT$ ${bookingData.total_price}</p>
+        <p><strong>总价:</strong> NT$ ${bookingData.totalPrice}</p>
         <p><strong>预订状态:</strong> ${bookingData.status}</p>
     `;
     
@@ -1325,6 +1360,8 @@ function initFlatpickr(availabilityData, calendarFooter) {
         static: true,
         nextArrow: '<svg viewBox="0 0 32 32"><path fill="#222" d="m12 4 1.41 1.41L6.83 12H28v2H6.83l6.59 6.59L12 22 2 12l10-8z" transform="rotate(180 15 12)"></path></svg>',
         prevArrow: '<svg viewBox="0 0 32 32"><path fill="#222" d="m12 4 1.41 1.41L6.83 12H28v2H6.83l6.59 6.59L12 22 2 12l10-8z"></path></svg>',
+        // 确保正确处理时区
+        time_24hr: true,
         onDayCreate: function(dObj, dStr, fp, dayElem) {
             // 创建日期数字的容器
             const dayNumberElem = document.createElement('span');
@@ -1333,7 +1370,7 @@ function initFlatpickr(availabilityData, calendarFooter) {
             dayElem.textContent = '';
             dayElem.appendChild(dayNumberElem);
             
-            // 获取当前日期
+            // 获取当前日期并确保正确格式化
             const currentDate = new Date(dayElem.dateObj);
             const dateStr = formatDateYMD(currentDate);
             
@@ -1366,8 +1403,10 @@ function initFlatpickr(availabilityData, calendarFooter) {
             }
             
             if (selectedDates.length === 1) {
-                // 只选择了入住日期
-                const checkIn = selectedDates[0];
+                // 只选择了入住日期 - 创建新的日期对象避免引用问题
+                const checkIn = new Date(selectedDates[0]);
+                console.log('选择入住日期 (原始):', selectedDates[0]);
+                console.log('选择入住日期 (复制):', checkIn);
                 
                 // 更新入住日期
                 bookingState.checkInDate = checkIn;
@@ -1377,9 +1416,15 @@ function initFlatpickr(availabilityData, calendarFooter) {
                 elements.dateRangeClear.style.display = 'flex';
                 
             } else if (selectedDates.length === 2) {
-                // 选择了入住和退房日期
-                const checkIn = selectedDates[0];
-                const checkOut = selectedDates[1];
+                // 选择了入住和退房日期 - 创建新的日期对象避免引用问题
+                const checkIn = new Date(selectedDates[0]);
+                const checkOut = new Date(selectedDates[1]);
+                
+                console.log('选择日期范围 (原始):', selectedDates);
+                console.log('选择入住日期 (复制):', checkIn);
+                console.log('选择退房日期 (复制):', checkOut);
+                console.log('入住日期格式化:', formatDateYMD(checkIn));
+                console.log('退房日期格式化:', formatDateYMD(checkOut));
                 
                 // 更新状态
                 bookingState.checkInDate = checkIn;
