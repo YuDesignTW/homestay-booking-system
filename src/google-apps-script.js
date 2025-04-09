@@ -249,119 +249,105 @@ function checkAvailability(checkInDate, checkOutDate) {
       const roomPrice = room.price;
       const roomMaxGuests = room.maxGuests;
       
-      Logger.log('处理房型: ' + roomId + ' - ' + roomName);
-      
-      // 找到房型对应的列索引
-      const columnIndex = headers.indexOf(roomId);
-      if(columnIndex === -1) {
-        Logger.log('找不到房型对应列: ' + roomId);
-        return; // 找不到对应的房型列
-      }
-      
-      Logger.log('找到房型列索引: ' + columnIndex);
-      
-      // 计算该房型在日期范围内的最小可用数量
+      // 用于该房型的可用情况
+      let isAvailable = true;
       let minAvailable = Infinity;
       
-      // 遍历日期范围
+      // 检查日期范围内每一天的可用情况
       for(let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
         const dateString = Utilities.formatDate(d, 'GMT+8', 'yyyy-MM-dd');
+        Logger.log(`检查日期 ${dateString} 的 ${roomId} 房型可用性`);
         
-        Logger.log('检查日期: ' + dateString);
+        // 该日期的可用房间数
+        let availableCount = 0;
         
-        // 在可用性表中查找对应日期的行
+        // 在表格中查找当前日期的行
         let found = false;
+        
+        // 查找日期行
         for(let i = 0; i < rows.length; i++) {
           const rowDate = rows[i][0];
           
-          // 确保rowDate是日期类型
+          // 处理不同格式的日期
           let rowDateStr = '';
+          
+          // 日期可能是Date对象
           if(rowDate instanceof Date) {
             rowDateStr = Utilities.formatDate(rowDate, 'GMT+8', 'yyyy-MM-dd');
-          } else if(typeof rowDate === 'string') {
-            // 尝试解析字符串日期 (格式可能是 "2025/05/01" 或其他)
-            try {
-              // 处理常见的日期格式 yyyy/MM/dd
-              let parts = rowDate.split('/');
-              if(parts.length === 3) {
-                const year = parseInt(parts[0]);
-                const month = parseInt(parts[1]) - 1; // 月份是0-11
-                const day = parseInt(parts[2]);
-                const parsedDate = new Date(year, month, day);
-                rowDateStr = Utilities.formatDate(parsedDate, 'GMT+8', 'yyyy-MM-dd');
-                Logger.log('解析日期字符串成功: ' + rowDate + ' -> ' + rowDateStr);
-              } else {
-                // 尝试标准日期解析
+          } 
+          // 日期可能是字符串
+          else if(typeof rowDate === 'string') {
+            // 如果是YYYY-MM-DD格式
+            if(rowDate.includes('-')) {
+              rowDateStr = rowDate;
+            } else {
+              try {
                 const parsedDate = new Date(rowDate);
-                rowDateStr = Utilities.formatDate(parsedDate, 'GMT+8', 'yyyy-MM-dd');
+                if(!isNaN(parsedDate.getTime())) {
+                  rowDateStr = Utilities.formatDate(parsedDate, 'GMT+8', 'yyyy-MM-dd');
+                }
+              } catch(e) {
+                continue;
               }
-            } catch(e) {
-              Logger.log('无法解析日期字符串: ' + rowDate + ', 错误: ' + e.toString());
-              continue;
             }
           }
           
-          Logger.log('比较日期: ' + dateString + ' vs ' + rowDateStr);
+          Logger.log(`比较: 表格日期=${rowDateStr} vs 目标日期=${dateString}`);
           
+          // 找到匹配的日期行
           if(rowDateStr === dateString) {
-            let available = 0;
+            found = true;
             
-            // 确保获取的可用数量是数字
-            const availValue = rows[i][columnIndex];
-            if(typeof availValue === 'number') {
-              available = availValue;
-            } else if(typeof availValue === 'string') {
-              available = parseInt(availValue) || 0;
+            // 获取该房型列的索引
+            const columnIndex = headers.indexOf(roomId);
+            if(columnIndex !== -1) {
+              availableCount = rows[i][columnIndex];
+              
+              // 转换为数字
+              if(typeof availableCount !== 'number') {
+                availableCount = parseInt(availableCount) || 0;
+              }
+              
+              Logger.log(`找到房型 ${roomId} 在日期 ${dateString} 的可用数量: ${availableCount}`);
+            } else {
+              Logger.log(`找不到房型 ${roomId} 的列`);
+              availableCount = 0;
             }
             
-            Logger.log('找到日期 ' + dateString + ' 的可用数量: ' + available);
-            minAvailable = Math.min(minAvailable, available);
-            found = true;
             break;
           }
         }
         
+        // 如果在表格中找不到该日期，默认为0可用
         if(!found) {
-          Logger.log('找不到日期: ' + dateString);
-          // 如果找不到日期，假设默认可用数量
-          const totalRooms = room.totalRooms || 0;
-          Logger.log('使用默认可用数量: ' + totalRooms);
-          minAvailable = Math.min(minAvailable, totalRooms);
-        }
-      }
-      
-      Logger.log('房型 ' + roomId + ' 的最小可用数量: ' + minAvailable);
-      
-      // 如果有可用房间，则添加到结果中
-      if(minAvailable > 0 && minAvailable !== Infinity) {
-        // 添加房型特性(features)数据
-        let features = [];
-        if(roomId === 'LAO_S') {
-          features = [
-            { icon: 'fas fa-user', text: '2人' },
-            { icon: 'fas fa-bed', text: '1张大床' },
-            { icon: 'fas fa-bath', text: '独立卫浴' },
-            { icon: 'fas fa-wifi', text: '免费Wi-Fi' }
-          ];
-        } else if(roomId === 'LAO_L') {
-          features = [
-            { icon: 'fas fa-users', text: '4人' },
-            { icon: 'fas fa-bed', text: '1张大床 + 2张单人床' },
-            { icon: 'fas fa-bath', text: '独立卫浴' },
-            { icon: 'fas fa-wifi', text: '免费Wi-Fi' },
-            { icon: 'fas fa-tv', text: '50寸液晶电视' }
-          ];
+          Logger.log(`在可用性表中找不到日期 ${dateString}，默认为0可用`);
+          availableCount = 0;
         }
         
-        availability.push({
-          id: roomId,
-          name: roomName,
-          price: roomPrice,
-          maxGuests: roomMaxGuests,
-          available: minAvailable,
-          features: features
-        });
+        // 更新该房型在整个日期范围内的最小可用数量
+        minAvailable = Math.min(minAvailable, availableCount);
+        
+        // 如果某一天没有可用房间，则整个日期范围都不可用
+        if(availableCount <= 0) {
+          isAvailable = false;
+        }
       }
+      
+      // 如果minAvailable仍为Infinity，表示没有找到任何日期行，设为0
+      if(minAvailable === Infinity) {
+        minAvailable = 0;
+        isAvailable = false;
+      }
+      
+      // 添加到结果
+      availability.push({
+        id: roomId,
+        name: roomName,
+        price: roomPrice,
+        maxGuests: roomMaxGuests,
+        available: minAvailable,
+        isAvailable: isAvailable
+      });
     });
     
     Logger.log('最终可用房型数: ' + availability.length);
@@ -587,22 +573,55 @@ function updateAvailability(roomId, checkInDate, checkOutDate, change) {
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
     
+    // 增加日志以便调试
+    Logger.log('更新可用性: 房型=' + roomId + ', 入住=' + Utilities.formatDate(checkIn, 'GMT+8', 'yyyy-MM-dd') + 
+             ', 退房=' + Utilities.formatDate(checkOut, 'GMT+8', 'yyyy-MM-dd') + ', 变化=' + change);
+    
     // 遍历日期范围内的每一天
     for(let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
       const dateString = Utilities.formatDate(d, 'GMT+8', 'yyyy-MM-dd');
+      Logger.log('处理日期: ' + dateString);
       
       // 查找日期行
       let rowIndex = -1;
       for(let i = 1; i < data.length; i++) {
         const rowDate = data[i][0];
-        if(rowDate instanceof Date && Utilities.formatDate(rowDate, 'GMT+8', 'yyyy-MM-dd') === dateString) {
+        
+        // 增加日期比较的方式
+        let rowDateStr = '';
+        
+        // 日期可能是Date对象
+        if(rowDate instanceof Date) {
+          rowDateStr = Utilities.formatDate(rowDate, 'GMT+8', 'yyyy-MM-dd');
+        } 
+        // 日期可能是字符串
+        else if(typeof rowDate === 'string') {
+          // 尝试转换为标准格式
+          if(rowDate.includes('-')) {
+            rowDateStr = rowDate;
+          } else {
+            try {
+              const parsedDate = new Date(rowDate);
+              if(!isNaN(parsedDate.getTime())) {
+                rowDateStr = Utilities.formatDate(parsedDate, 'GMT+8', 'yyyy-MM-dd');
+              }
+            } catch(e) {
+              continue;
+            }
+          }
+        }
+        
+        Logger.log('比较: 表格日期=' + rowDateStr + ' 与 目标日期=' + dateString);
+        if(rowDateStr === dateString) {
           rowIndex = i + 1; // +1 因为表行号从1开始
+          Logger.log('找到匹配行: ' + rowIndex);
           break;
         }
       }
       
       if(rowIndex === -1) {
         // 如果找不到日期行，则添加新行
+        Logger.log('未找到日期' + dateString + '的行，添加新行');
         const newRow = Array(headers.length).fill('');
         newRow[0] = new Date(d);
         
@@ -628,8 +647,10 @@ function updateAvailability(roomId, checkInDate, checkOutDate, change) {
       } else {
         // 更新现有行
         const currentValue = data[rowIndex-1][columnIndex];
-        const newValue = typeof currentValue === 'number' ? currentValue + change : change;
+        Logger.log('更新现有行: 行=' + rowIndex + ', 当前值=' + currentValue);
+        const newValue = typeof currentValue === 'number' ? currentValue + change : (isNaN(parseInt(currentValue)) ? change : parseInt(currentValue) + change);
         availabilitySheet.getRange(rowIndex, columnIndex + 1).setValue(Math.max(0, newValue));
+        Logger.log('已更新: 新值=' + Math.max(0, newValue));
       }
     }
     
