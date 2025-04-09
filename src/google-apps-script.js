@@ -376,6 +376,9 @@ function checkAvailability(checkInDate, checkOutDate) {
  */
 function submitBooking(bookingData) {
   try {
+    // 添加收到数据的日志
+    Logger.log('收到预订数据: ' + JSON.stringify(bookingData));
+    
     // 验证必要字段
     const requiredFields = ['checkInDate', 'checkOutDate', 'roomId', 'guestName', 'guestPhone', 'guestEmail'];
     for(const field of requiredFields) {
@@ -427,18 +430,26 @@ function submitBooking(bookingData) {
     // 添加新行
     bookingSheet.appendRow(newRow);
     
-    // 更新可用性表
+    // 记录日期信息并更新可用性表
+    Logger.log('更新可用性: 入住日期=' + bookingData.checkInDate + ', 退房日期=' + bookingData.checkOutDate);
     updateAvailability(bookingData.roomId, bookingData.checkInDate, bookingData.checkOutDate, -1);
     
     // 发送确认邮件（如果有需要）
     sendConfirmationEmail(bookingData, bookingId);
     
+    // 返回成功信息，包含关键数据
     return { 
       success: true, 
       message: '预订成功！', 
-      bookingId 
+      bookingId,
+      // 返回重要信息，客户端可能需要
+      checkInDate: bookingData.checkInDate,
+      checkOutDate: bookingData.checkOutDate,
+      totalPrice: bookingData.totalPrice || 0,
+      nights: bookingData.nights || 0
     };
   } catch(error) {
+    Logger.log('提交预订时出错: ' + error.toString());
     return { error: '提交预订时出错: ' + error.toString() };
   }
 }
@@ -569,13 +580,39 @@ function updateAvailability(roomId, checkInDate, checkOutDate, change) {
       throw new Error('找不到对应的房型列');
     }
     
-    // 转换日期
-    const checkIn = new Date(checkInDate);
-    const checkOut = new Date(checkOutDate);
+    // 记录原始输入日期
+    Logger.log('原始入住日期字符串: ' + checkInDate);
+    Logger.log('原始退房日期字符串: ' + checkOutDate);
+    
+    // 严格按照YYYY-MM-DD格式解析日期，确保正确时区
+    let checkIn, checkOut;
+    
+    // 处理YYYY-MM-DD格式的日期
+    if(typeof checkInDate === 'string' && checkInDate.includes('-')) {
+      const [year, month, day] = checkInDate.split('-').map(num => parseInt(num));
+      // 注意：JavaScript中月份是0-11，所以需要减1
+      checkIn = new Date(year, month - 1, day);
+    } else {
+      checkIn = new Date(checkInDate);
+    }
+    
+    if(typeof checkOutDate === 'string' && checkOutDate.includes('-')) {
+      const [year, month, day] = checkOutDate.split('-').map(num => parseInt(num));
+      // 注意：JavaScript中月份是0-11，所以需要减1
+      checkOut = new Date(year, month - 1, day);
+    } else {
+      checkOut = new Date(checkOutDate);
+    }
+    
+    // 使用formatDate确保日期格式正确
+    const formattedCheckIn = Utilities.formatDate(checkIn, 'GMT+8', 'yyyy-MM-dd');
+    const formattedCheckOut = Utilities.formatDate(checkOut, 'GMT+8', 'yyyy-MM-dd');
     
     // 增加日志以便调试
-    Logger.log('更新可用性: 房型=' + roomId + ', 入住=' + Utilities.formatDate(checkIn, 'GMT+8', 'yyyy-MM-dd') + 
-             ', 退房=' + Utilities.formatDate(checkOut, 'GMT+8', 'yyyy-MM-dd') + ', 变化=' + change);
+    Logger.log('更新可用性: 房型=' + roomId + 
+               ', 解析后入住=' + formattedCheckIn + 
+               ', 解析后退房=' + formattedCheckOut + 
+               ', 变化=' + change);
     
     // 遍历日期范围内的每一天
     for(let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {

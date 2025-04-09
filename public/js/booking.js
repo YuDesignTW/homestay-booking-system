@@ -211,7 +211,7 @@ function loadAvailabilityData(startDate, numberOfDays) {
     console.log(`预加载房型可用性数据: 开始日期=${checkIn}, 结束日期=${checkOut}`);
     
     // 返回Promise
-    return fetch(`https://script.google.com/macros/s/AKfycbwmGApkplKALCQiprOfd2p4ohs0mGhA8UDgsA-qikksOW3fLLoG_DbgGRp9H-mSGrPS/exec?action=checkAvailabilityCalendar&checkIn=${checkIn}&checkOut=${checkOut}`)
+    return fetch(`https://script.google.com/macros/s/AKfycbwjXdV79OGRD4Lrubad1CCYnbKmCj2bYTnGM4pylUHwHE_WiJezJjvavHmUeyenfqOI/exec?action=checkAvailabilityCalendar&checkIn=${checkIn}&checkOut=${checkOut}`)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.availabilityData) {
@@ -358,7 +358,7 @@ function loadAvailableRooms() {
     console.log('退房日期格式化:', checkOutDateStr);
     
     // API端點 - 修正URL
-    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbwmGApkplKALCQiprOfd2p4ohs0mGhA8UDgsA-qikksOW3fLLoG_DbgGRp9H-mSGrPS/exec';
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbwjXdV79OGRD4Lrubad1CCYnbKmCj2bYTnGM4pylUHwHE_WiJezJjvavHmUeyenfqOI/exec';
     
     // 使用純 fetch 方式獲取數據（使用 no-cors 模式）
     console.log(`獲取房型數據：${checkInDateStr} 至 ${checkOutDateStr}`);
@@ -743,7 +743,7 @@ function submitBooking() {
     };
     
     // API端點
-    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbwmGApkplKALCQiprOfd2p4ohs0mGhA8UDgsA-qikksOW3fLLoG_DbgGRp9H-mSGrPS/exec';
+    const apiEndpoint = 'https://script.google.com/macros/s/AKfycbwjXdV79OGRD4Lrubad1CCYnbKmCj2bYTnGM4pylUHwHE_WiJezJjvavHmUeyenfqOI/exec';
     
     // 日誌記錄將要發送的數據
     console.log('準備提交預訂數據:', {
@@ -852,12 +852,29 @@ function handleDirectSubmitSuccess(bookingData) {
         elements.submitLoading.style.display = 'none';
     }
     
+    // 确保所有关键数据都存在
+    if (!bookingData.checkInDate && bookingState.checkInDate) {
+        bookingData.checkInDate = formatDateYMD(bookingState.checkInDate);
+    }
+    
+    if (!bookingData.checkOutDate && bookingState.checkOutDate) {
+        bookingData.checkOutDate = formatDateYMD(bookingState.checkOutDate);
+    }
+    
+    if (!bookingData.totalPrice && bookingState.totalPrice) {
+        bookingData.totalPrice = bookingState.totalPrice;
+    }
+    
+    if (!bookingData.nights && bookingState.totalNights) {
+        bookingData.nights = bookingState.totalNights;
+    }
+    
+    // 添加日志
+    console.log('处理直接提交成功，补充后的预订数据:', bookingData);
+    
     // 顯示成功信息
     if (elements.bookingSuccess) {
         elements.bookingSuccess.style.display = 'block';
-        
-        // 添加日志
-        console.log('处理直接提交成功，预订数据:', bookingData);
         
         // 顯示警告信息（預訂尚未確認）
         const warningElement = document.createElement('div');
@@ -915,18 +932,44 @@ function updateFinalBookingDetails(bookingData) {
     // 打印预订数据用于调试
     console.log('更新预订详情时的数据:', bookingData);
     
+    // 确保所有必要字段都有值
+    const booking_id = bookingData.booking_id || bookingData.bookingId || '等待生成';
+    const room_name = bookingData.room_name || '选定房型';
+    
+    // 处理日期和价格
+    let checkInDate = bookingData.checkInDate || bookingData.check_in_date || 'N/A';
+    let checkOutDate = bookingData.checkOutDate || bookingData.check_out_date || 'N/A';
+    const nights = bookingData.nights || 1;
+    const guests = bookingData.guests || bookingState.guestsCount;
+    const totalPrice = bookingData.totalPrice || bookingData.total_price || bookingState.totalPrice;
+    const status = bookingData.status || '待確認';
+    
+    // 日期可能已经是格式化的字符串，但如果是日期对象则需要格式化
+    if (checkInDate instanceof Date) {
+        checkInDate = formatDateYMD(checkInDate);
+    }
+    
+    if (checkOutDate instanceof Date) {
+        checkOutDate = formatDateYMD(checkOutDate);
+    }
+    
+    // 生成详情HTML
     const detailsHTML = `
-        <h3>预订号: ${bookingData.booking_id}</h3>
-        <p><strong>房型:</strong> ${bookingData.room_name}</p>
-        <p><strong>入住日期:</strong> ${bookingData.checkInDate}</p>
-        <p><strong>退房日期:</strong> ${bookingData.checkOutDate}</p>
-        <p><strong>住宿天数:</strong> ${bookingData.nights}晚</p>
-        <p><strong>入住人数:</strong> ${bookingData.guests}人</p>
-        <p><strong>总价:</strong> NT$ ${bookingData.totalPrice}</p>
-        <p><strong>预订状态:</strong> ${bookingData.status}</p>
+        <h3>预订号: ${booking_id}</h3>
+        <p><strong>房型:</strong> ${room_name}</p>
+        <p><strong>入住日期:</strong> ${checkInDate}</p>
+        <p><strong>退房日期:</strong> ${checkOutDate}</p>
+        <p><strong>住宿天数:</strong> ${nights}晚</p>
+        <p><strong>入住人数:</strong> ${guests}人</p>
+        <p><strong>总价:</strong> NT$ ${totalPrice}</p>
+        <p><strong>预订状态:</strong> ${status}</p>
     `;
     
-    elements.finalBookingDetails.innerHTML = detailsHTML;
+    if (elements.finalBookingDetails) {
+        elements.finalBookingDetails.innerHTML = detailsHTML;
+    } else {
+        console.error('无法找到finalBookingDetails元素');
+    }
 }
 
 // 初始化步驟導航
